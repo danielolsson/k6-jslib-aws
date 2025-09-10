@@ -9,5 +9,5 @@ export {
   TCPError,
   TLSError,
 } from "./internal/error.ts";
-export { KMSClient, KMSDataKey, KMSServiceError } from "./internal/kms.ts";
+export { KMSClient, KMSDataKey, KMSDecryptResponse, KMSServiceError } from "./internal/kms.ts";
 export { InvalidSignatureError } from "./internal/signature.ts";

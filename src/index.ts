@@ -14,7 +14,7 @@ export {
   AMZ_CONTENT_SHA256_HEADER,
   UNSIGNED_PAYLOAD,
 } from "./internal/constants.ts";
-export { KMSClient, KMSDataKey, KMSServiceError } from "./internal/kms.ts";
+export { KMSClient, KMSDataKey, KMSDecryptResponse, KMSServiceError } from "./internal/kms.ts";
 export { Endpoint } from "./internal/endpoint.ts";
 export { SignatureV4 } from "./internal/signature.ts";
 export { S3Bucket, S3Client, S3Object, S3ServiceError } from "./internal/s3.ts";

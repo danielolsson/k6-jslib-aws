@@ -30,4 +30,18 @@ export async function kmsTestSuite(data) {
     expect(dataKey.ciphertextBlobText).to.not.equal("");
     expect(dataKey.plaintext).to.not.equal("");
   });
+
+  await asyncDescribe("kms.decrypt", async (expect) => {
+    // Arrange
+    const keys = await kmsClient.listKeys();
+    const keyId = keys[0].keyId;
+
+    // Act
+    const decryptResponse = await kmsClient.decrypt(keyId, new Uint8Array([...'encryptedText'].map((c) => c.charCodeAt(0))));
+
+    // Assert
+    expect(decryptResponse).to.be.an("object");
+    expect(decryptResponse.id).to.not.equal("");
+    expect(decryptResponse.plaintext).to.not.equal("");
+  });
 }

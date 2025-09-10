@@ -1,5 +1,6 @@
 import { JSONArray, JSONObject } from "k6";
 import http, { RefinedResponse, ResponseType } from "k6/http";
+import encoding from "k6/encoding";
 
 import { AWSClient } from "./client.ts";
 import { AWSConfig } from "./config.ts";
@@ -131,6 +132,50 @@ export class KMSClient extends AWSClient {
     return KMSDataKey.fromJSON(res.json() as JSONObject);
   }
 
+
+  /**
+   * Decrypts ciphertext that was encrypted by a KMS key.
+   * To use this operation, you must have the kms:Decrypt permission.
+   *
+   * @param  {Uint8Array} ciphertextBlob - The data to decrypt.
+   * @param  {string} keyId - Specifies the symmetric encryption KMS key that encrypts
+   *     the data key. Use its key ID, key ARN, alias name, or alias ARN.
+   * @return  {KMSDecryptResponse} The response with the decrypted plaintextBlob.
+   * @throws  {KMSServiceError}
+   * @throws  {InvalidSignatureError}
+   */
+  async decrypt(ciphertextBlob: Uint8Array, keyId?: string): Promise<KMSDecryptResponse | undefined> {
+    const signedRequest = this.signature.sign(
+      {
+        method: this.method,
+        endpoint: this.endpoint,
+        path: "/",
+        headers: {
+          ...this.commonHeaders,
+          // For some reason, the base target is not kms...
+          [AMZ_TARGET_HEADER]: `TrentService.Decrypt`,
+        },
+        body: JSON.stringify({ CiphertextBlob: encoding.b64encode(ciphertextBlob.buffer), KeyId: keyId }),
+      },
+      {},
+    );
+
+    const res = await http.asyncRequest(
+      this.method,
+      signedRequest.url,
+      signedRequest.body,
+      {
+        ...this.baseRequestParams,
+        headers: signedRequest.headers,
+      },
+    );
+    this.handleError(res, KMSOperation.Decrypt);
+
+    return KMSDecryptResponse.fromJSON(res.json() as JSONObject);
+  }
+
+
+
   protected override handleError(
     response: RefinedResponse<ResponseType | undefined>,
     operation?: string,
@@ -232,6 +277,30 @@ export class KMSDataKey {
   }
 }
 
+export class KMSDecryptResponse {
+  encryptionAlgorithm?: string;
+  keyId?: string;
+  keyMaterialId?: string;
+  plaintext?: Uint8Array;
+
+  constructor(encryptionAlgorithm?: string, keyId?: string,
+    keyMaterialId?: string, plaintext?: Uint8Array) {
+    this.encryptionAlgorithm = encryptionAlgorithm;
+    this.keyId = keyId;
+    this.keyMaterialId = keyMaterialId;
+    this.plaintext = plaintext;
+  }
+
+  static fromJSON(json: JSONObject) {
+    return new KMSDecryptResponse(
+      json.EncryptionAlgorithm as string,
+      json.KeyId as string,
+      json.KeyMaterialId as string,
+      new Uint8Array(encoding.b64decode(json.Plaintext as string)),
+    );
+  }
+}
+
 export class KMSServiceError extends AWSError {
   operation: KMSOperation;
 
@@ -255,6 +324,7 @@ export class KMSServiceError extends AWSError {
 enum KMSOperation {
   GenerateDataKey = "GenerateDataKey",
   ListKeys = "ListKeys",
+  Decrypt = "Decrypt",
 }
 
 /**
